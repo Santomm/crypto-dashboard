@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加密货币代币列表 - 混合数据源</title>
+    <!-- 引入 Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 引入 Inter 字体以获得现代感 */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117; /* 深色背景 */
+            color: #c9d1d9; /* 浅色文本 */
+        }
+        /* 表格悬停效果 */
+        .token-row:hover {
+            background-color: #161b22;
+        }
+        /* 涨跌幅百分比样式 */
+        .percent-up { color: #48bb78; } /* 绿色 */
+        .percent-down { color: #f56565; } /* 红色 */
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8 p-4 bg-[#161b22] rounded-xl shadow-lg">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-blue-400 mb-2">代币市场数据增强列表 (聚焦 Binance USDT)</h1>
+            <p class="text-gray-400 text-sm sm:text-base">列表已过滤至 **Binance USDT 市场** 的代币。价格/交易量：Binance API | 流通市值/换手率/涨跌幅：CoinGecko API (前 500 代币已实现 4 小时自动刷新)</p>
+        </header>
+
+        <div class="flex flex-col sm:flex-row gap-4 mb-6">
+            <!-- 搜索框 -->
+            <input type="text" id="search-input" placeholder="搜索代币名称或符号..."
+                   class="flex-grow p-3 rounded-xl bg-gray-700 text-white border border-gray-600 focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+            
+            <!-- 筛选/排序按钮组（占位，可扩展） -->
+            <div class="flex gap-3">
+                <button class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition duration-150" onclick="fetchDataAndRender()">
+                    <svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11.412 8.59l.617-.618m-.617.618a8.002 8.002 0 01-14.735 0M9 14l-2 2 2 2"></path></svg>
+                    立即刷新
+                </button>
+            </div>
+        </div>
+
+        <!-- 代币列表表格容器 -->
+        <div class="bg-[#161b22] rounded-xl overflow-x-auto shadow-xl">
+            <table class="min-w-full divide-y divide-gray-700">
+                <thead class="bg-gray-800 sticky top-0">
+                    <tr>
+                        <!-- 排名 -->
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('rank')">#</th>
+                        <!-- 名称 -->
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('name')">名称</th>
+                        <!-- 价格 (Binance) -->
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('priceUSD')">价格 (USD)</th>
+                        <!-- 24H 交易量 (Binance USDT) -->
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden sm:table-cell" onclick="sortData('volume24hUSD')">24H 交易量</th>
+                        <!-- 24小时涨跌幅 -->
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden sm:table-cell" onclick="sortData('priceChangePercent24h')">24小时涨跌幅</th>
+                        <!-- 流通市值 (CoinGecko) -->
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('circulatingMarketCapUSD')">流通市值</th>
+                        <!-- 换手率 (CoinGecko) -->
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('turnoverRate')">换手率 (24H)</th>
+                    </tr>
+                </thead>
+                <tbody id="token-list-body" class="divide-y divide-gray-700">
+                    <!-- 数据将通过 JavaScript 填充 -->
+                    <tr><td colspan="7" class="p-8 text-center text-gray-500">正在加载数据...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <footer class="mt-8 text-center text-xs text-gray-500 p-4">
+            <p>价格/24H交易量源自 Binance API；列表已过滤至 Binance USDT 市场的代币。流通市值 = CoinGecko流通供应量 * Binance价格；换手率（稳定币除外）基于 Binance 交易量和计算市值；24H涨跌幅源自 CoinGecko API。</p>
+        </footer>
+    </div>
+
+    <script type="text/javascript">
+        // Binance API URL：用于获取实时价格和交易对信息
+        const BINANCE_PRICE_API_URL = 'https://api.binance.com/api/v3/ticker/price';
+        // Binance 24h Ticker URL：用于获取 24 小时交易量 (用于换手率计算)
+        const BINANCE_24HR_TICKER_API_URL = 'https://api.binance.com/api/v3/ticker/24hr';
+
+
+        // 初始排序设置为 24H 交易量降序 (满足用户需求)
+        let currentSort = { column: 'volume24hUSD', direction: 'desc' }; 
+        let allTokens = [];
+        let refreshIntervalId = null;
+
+        /**
+         * 格式化数字为货币字符串
+         * @param {number} num - 待格式化的数字
+         * @returns {string} 格式化后的字符串
+         */
+        function formatCurrency(num) {
+            if (num === null || isNaN(num) || num === undefined) return 'N/A';
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: (num < 1 && num !== 0) ? 4 : 2,
+                maximumFractionDigits: (num < 1 && num !== 0) ? 8 : 2,
+            }).format(num);
+        }
+
+        /**
+         * 格式化大数字为简洁形式 (如 1.23T)
+         * @param {number} num - 待格式化的数字
+         * @returns {string} 简洁格式的字符串
+         */
+        function formatCompact(num) {
+            if (num === null || isNaN(num) || num === 0 || num === undefined) return '$0';
+            const units = [
+                { value: 1e12, symbol: "T" },
+                { value: 1e9, symbol: "B" },
+                { value: 1e6, symbol: "M" },
+            ];
+            for (const unit of units) {
+                if (num >= unit.value) {
+                    return '$' + (num / unit.value).toFixed(2).replace(/\.0$/, '') + unit.symbol;
+                }
+            }
+            return formatCurrency(num);
+        }
+
+        /**
+         * 从 CoinGecko API 获取指定页的市场数据 (每页最多 250 个)
+         * @param {number} page - 页码 (1 或 2)
+         * @returns {Promise<Array<Object>>} 代币数据列表
+         */
+        async function fetchCoingeckoPage(page) {
+            const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=${page}&sparkline=false`;
+            const response = await fetch(url);
+            if (!response.ok) {
+                // 如果任一页面请求失败，抛出错误
+                throw new Error(`CoinGecko API (Page ${page}) 请求失败: ${response.status} ${response.statusText}`);
+            }
+            return response.json();
+        }
+
+        /**
+         * 从 Binance API 获取所有 USDT 交易对的价格并创建映射
+         * @returns {Promise<Map<string, number>>} 符号到价格的映射 (e.g., {'BTC': 60000.00})
+         */
+        async function fetchBinancePrices() {
+            try {
+                const response = await fetch(BINANCE_PRICE_API_URL);
+                if (!response.ok) {
+                    throw new Error(`Binance API 请求失败: ${response.status}`);
+                }
+                const rawData = await response.json();
+                
+                const priceMap = new Map();
+                // 筛选出 USDT 交易对 (这是主流的稳定币计价对)
+                rawData.forEach(ticker => {
+                    if (ticker.symbol.endsWith('USDT')) {
+                        const baseAsset = ticker.symbol.replace('USDT', '');
+                        priceMap.set(baseAsset, parseFloat(ticker.price));
+                    }
+                });
+                return priceMap;
+            } catch (error) {
+                console.error("Binance API 数据获取错误:", error);
+                return new Map(); // 返回空 Map 以便 CoinGecko 数据能继续渲染
+            }
+        }
+
+        /**
+         * 从 Binance API 获取所有 USDT 交易对的 24H 交易量 (以 USDT 计价)
+         * @returns {Promise<Map<string, number>>} 符号到 24H 交易量 (USDT) 的映射
+         */
+        async function fetchBinance24hrVolume() {
+            try {
+                const response = await fetch(BINANCE_24HR_TICKER_API_URL);
+                if (!response.ok) {
+                    throw new Error(`Binance 24hr Ticker API 请求失败: ${response.status}`);
+                }
+                const rawData = await response.json();
+                
+                const volumeMap = new Map();
+                // quoteVolume 是以计价货币 (USDT) 衡量的交易量
+                rawData.forEach(ticker => {
+                    if (ticker.symbol.endsWith('USDT')) {
+                        const baseAsset = ticker.symbol.replace('USDT', '');
+                        // quoteVolume 相当于以 USD 衡量的交易额
+                        volumeMap.set(baseAsset, parseFloat(ticker.quoteVolume)); 
+                    }
+                });
+                return volumeMap;
+            } catch (error) {
+                console.error("Binance 24hr Ticker API 数据获取错误:", error);
+                return new Map();
+            }
+        }
+
+        /**
+         * 从 CoinGecko API 获取所有市场数据 (前 500)，并与 Binance 价格和交易量合并
+         * @returns {Promise<Array<Object>>} 代币数据列表
+         */
+        async function fetchTokenData() {
+            console.log("正在从 CoinGecko (前 500) 和 Binance 获取数据...");
+            
+            // 常见的稳定币符号列表，不计算换手率
+            const STABLECOIN_SYMBOLS = ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDP', 'FRAX', 'GUSD', 'PAXG', 'EURS', 'USTC', 'FDUSD'];
+
+            // 并行请求 CoinGecko 第 1 页和第 2 页 (共 500 个代币) 以及 Binance 数据
+            const [cgPage1, cgPage2, binancePriceMap, binanceVolumeMap] = await Promise.all([
+                fetchCoingeckoPage(1), 
+                fetchCoingeckoPage(2),
+                fetchBinancePrices(),
+                fetchBinance24hrVolume()
+            ]);
+            
+            // 合并 CoinGecko 结果
+            const rawCoinGeckoData = [...cgPage1, ...cgPage2];
+
+            // 关键过滤：只保留在 Binance USDT 市场中有价格的代币
+            const filteredCoinGeckoData = rawCoinGeckoData.filter(token => 
+                binancePriceMap.has(token.symbol.toUpperCase())
+            );
+
+
+            return filteredCoinGeckoData.map((token) => {
+                const symbolUpper = token.symbol.toUpperCase();
+                
+                // 1. 获取最终价格 (因为已经过滤，所以可以保证从 BinancePriceMap中获取)
+                const finalPrice = binancePriceMap.get(symbolUpper);
+
+                // 2. 获取 CoinGecko 的流通供应量
+                const circulatingSupply = token.circulating_supply;
+
+                // 3. 计算流通市值
+                const calculatedMarketCapUSD = circulatingSupply * finalPrice;
+                
+                // 4. 获取 24h 交易量，优先使用 Binance USDT 市场的 quoteVolume
+                const binanceVolume = binanceVolumeMap.get(symbolUpper);
+                const volume24h = binanceVolume !== undefined ? binanceVolume : token.total_volume;
+
+
+                // 5. 代币换手率 (Turnover Rate) 计算
+                let turnoverRate;
+
+                if (STABLECOIN_SYMBOLS.includes(symbolUpper)) {
+                    turnoverRate = null; // 稳定币不计算换手率，标记为 null
+                } else {
+                    turnoverRate = (volume24h / calculatedMarketCapUSD) * 100;
+                    // 处理无效数字
+                    if (isNaN(turnoverRate) || !isFinite(turnoverRate)) {
+                        turnoverRate = 0;
+                    }
+                }
+                
+                // 6. 涨跌幅 (使用 CoinGecko 的 24 小时涨跌幅代替 4 小时)
+                const priceChangePercent24h = token.price_change_percentage_24h;
+
+
+                return {
+                    rank: token.market_cap_rank,
+                    name: token.name, // 使用 CoinGecko 的全名
+                    symbol: symbolUpper,
+                    priceUSD: finalPrice, // 混合数据源的最新价格
+                    volume24hUSD: volume24h, // 新增的 24H 交易量 (Binance USDT)
+                    priceChangePercent24h: priceChangePercent24h, // 24小时涨跌幅
+                    circulatingMarketCapUSD: calculatedMarketCapUSD, // **使用计算后的流通市值**
+                    turnoverRate: turnoverRate, // 可以是数字、0 或 null
+                    image: token.image 
+                };
+            }).filter(token => token.rank !== null);
+        }
+
+        /**
+         * 根据指定的列和方向对数据进行排序
+         * @param {string} column - 排序的列名
+         */
+        function sortData(column) {
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                // 对于数值默认降序，排名和名称默认升序
+                currentSort.direction = (['rank', 'name', 'symbol'].includes(column)) ? 'asc' : 'desc'; 
+            }
+
+            allTokens.sort((a, b) => {
+                let aVal = a[column];
+                let bVal = b[column];
+                
+                // Custom handling for turnoverRate: treat null (stablecoins) as -1 to place them at the bottom
+                if (column === 'turnoverRate') {
+                    aVal = aVal === null ? -1 : aVal;
+                    bVal = bVal === null ? -1 : bVal;
+                }
+                
+                // Treat null/undefined values for numeric sorting (like volume) as 0 or the lowest value
+                if (typeof aVal === 'number' && typeof bVal === 'number') {
+                    // Ensure null values are treated as 0 for sorting purposes if they aren't stablecoins
+                    aVal = aVal === null || isNaN(aVal) ? 0 : aVal;
+                    bVal = bVal === null || isNaN(bVal) ? 0 : bVal;
+                }
+
+                let comparison = 0;
+                if (typeof aVal === 'string') {
+                    comparison = aVal.localeCompare(bVal);
+                } else {
+                    comparison = aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+                }
+
+                return currentSort.direction === 'asc' ? comparison : comparison * -1;
+            });
+
+            renderTable(allTokens);
+        }
+
+        /**
+         * 渲染代币列表表格
+         * @param {Array<Object>} [tokens=allTokens] - 要渲染的代币列表
+         */
+        function renderTable(tokens = allTokens) {
+            const tbody = document.getElementById('token-list-body');
+            const searchValue = document.getElementById('search-input').value.toLowerCase();
+            // 7 是现在的列数
+            const colspan = 7;
+            tbody.innerHTML = ''; 
+
+            // 过滤数据
+            const filteredTokens = tokens.filter(token =>
+                token.name.toLowerCase().includes(searchValue) ||
+                token.symbol.toLowerCase().includes(searchValue)
+            );
+
+            if (filteredTokens.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${colspan}" class="p-8 text-center text-gray-500">未找到匹配的代币。</td></tr>`;
+                return;
+            }
+
+            filteredTokens.forEach(token => {
+                // 价格颜色 (基于涨跌幅)
+                const priceChange = token.priceChangePercent24h || 0;
+                const changeClass = priceChange >= 0 ? 'percent-up' : 'percent-down';
+                const changeText = priceChange.toFixed(2) + '%';
+                
+                const row = document.createElement('tr');
+                row.className = 'token-row transition duration-150';
+                
+                // 1. 排名
+                row.innerHTML += `<td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-400">${token.rank}</td>`;
+                
+                // 2. 名称和符号
+                row.innerHTML += `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <!-- 实际图标 -->
+                            <img src="${token.image}" alt="${token.symbol} logo" class="w-8 h-8 rounded-full mr-3" onerror="this.onerror=null;this.src='https://placehold.co/32x32/1e40af/ffffff?text=${token.symbol.substring(0, 1)}'">
+                            <div>
+                                <div class="text-sm font-semibold text-white">${token.name}</div>
+                                <div class="text-xs text-gray-500 uppercase">${token.symbol}</div>
+                            </div>
+                        </div>
+                    </td>`;
+                
+                // 3. 价格 (Binance)
+                row.innerHTML += `<td class="px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-white">${formatCurrency(token.priceUSD)}</td>`;
+
+                // 4. 24H 交易量 (Binance USDT) - 新增列
+                row.innerHTML += `<td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-300 font-semibold hidden sm:table-cell">${formatCompact(token.volume24hUSD)}</td>`;
+
+                // 5. 24小时涨跌幅 (原 4)
+                row.innerHTML += `<td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold ${changeClass} hidden sm:table-cell">${changeText}</td>`;
+
+                // 6. 流通市值 (原 5)
+                row.innerHTML += `<td class="px-6 py-4 whitespace-nowrap text-sm text-right text-yellow-300 font-semibold">${formatCompact(token.circulatingMarketCapUSD)}</td>`;
+
+                // 7. 换手率 (Turnover Rate) (原 6)
+                let turnoverText;
+                let turnoverColorClass;
+
+                if (token.turnoverRate === null) {
+                    turnoverText = 'N/A';
+                    turnoverColorClass = 'text-gray-500'; // 灰色表示 N/A
+                } else {
+                    turnoverText = token.turnoverRate.toFixed(2) + '%';
+                    turnoverColorClass = token.turnoverRate > 30 ? 'text-pink-400' : token.turnoverRate > 10 ? 'text-blue-300' : 'text-gray-400';
+                }
+
+                row.innerHTML += `<td class="px-6 py-4 whitespace-nowrap text-sm text-right ${turnoverColorClass} font-mono">${turnoverText}</td>`;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        /**
+         * 负责获取数据和渲染，并在失败时更新 UI
+         */
+        async function fetchDataAndRender() {
+             const tbody = document.getElementById('token-list-body');
+             // 7 是现在的列数
+             const colspan = 7;
+             // 立即显示加载状态
+             tbody.innerHTML = `<tr><td colspan="${colspan}" class="p-8 text-center text-gray-500">正在从 CoinGecko 和 Binance API 获取最新数据...</td></tr>`;
+
+            try {
+                allTokens = await fetchTokenData();
+                // 默认按 24H 交易量降序排序 (volume24hUSD, desc)
+                sortData(currentSort.column); 
+                console.log("数据刷新成功！");
+            } catch (error) {
+                // 如果是 API 频率限制或其他错误，显示错误信息
+                tbody.innerHTML = `<tr><td colspan="${colspan}" class="p-8 text-center text-red-400">数据加载失败。请稍后再试或检查浏览器控制台了解详情。</td></tr>`;
+                console.error("加载数据时发生致命错误:", error);
+            }
+        }
+
+        /**
+         * 初始化函数：设置定时刷新
+         */
+        async function initialize() {
+            // 4 小时 = 4 * 60 * 60 * 1000 = 14,400,000 毫秒
+            const refreshRate = 14400000; 
+            // const refreshRate = 30000; // 30秒测试用
+
+            // 首次立即加载数据
+            await fetchDataAndRender();
+            
+            // 设置定时刷新
+            refreshIntervalId = setInterval(fetchDataAndRender, refreshRate);
+            console.log(`已设置每 ${refreshRate / 3600000} 小时自动刷新数据。`);
+        }
+
+        // 绑定搜索事件
+        document.getElementById('search-input').addEventListener('input', () => renderTable(allTokens));
+
+        // 页面加载完成后启动
+        window.onload = initialize;
+
+    </script>
+</body>
+</html>
