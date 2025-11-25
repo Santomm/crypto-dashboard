@@ -27,8 +27,9 @@
 
     <div class="max-w-7xl mx-auto">
         <header class="mb-8 p-4 bg-[#161b22] rounded-xl shadow-lg">
-            <h1 class="text-3xl sm:text-4xl font-extrabold text-blue-400 mb-2">代币市场数据增强列表 (聚焦 Binance USDT)</h1>
-            <p class="text-gray-400 text-sm sm:text-base">列表已过滤至 **Binance USDT 市场** 的代币。价格/交易量：Binance API | 流通市值/换手率/涨跌幅：CoinGecko API (前 500 代币已实现 4 小时自动刷新)</p>
+            <!-- 标题更新为前 1000 -->
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-blue-400 mb-2">代币市场数据增强列表</h1>
+            <p class="text-gray-400 text-sm sm:text-base">价格/交易量：Binance | 流通市值/换手率/涨跌幅：CoinGecko API (取前 1000个代币， 4 小时自动刷新)</p>
         </header>
 
         <div class="flex flex-col sm:flex-row gap-4 mb-6">
@@ -127,10 +128,11 @@
 
         /**
          * 从 CoinGecko API 获取指定页的市场数据 (每页最多 250 个)
-         * @param {number} page - 页码 (1 或 2)
+         * @param {number} page - 页码 (1 到 4)
          * @returns {Promise<Array<Object>>} 代币数据列表
          */
         async function fetchCoingeckoPage(page) {
+            // CoinGecko 单次请求最大限制是 250
             const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=${page}&sparkline=false`;
             const response = await fetch(url);
             if (!response.ok) {
@@ -196,25 +198,27 @@
         }
 
         /**
-         * 从 CoinGecko API 获取所有市场数据 (前 500)，并与 Binance 价格和交易量合并
+         * 从 CoinGecko API 获取所有市场数据 (前 1000)，并与 Binance 价格和交易量合并
          * @returns {Promise<Array<Object>>} 代币数据列表
          */
         async function fetchTokenData() {
-            console.log("正在从 CoinGecko (前 500) 和 Binance 获取数据...");
+            console.log("正在从 CoinGecko (前 1000) 和 Binance 获取数据...");
             
             // 常见的稳定币符号列表，不计算换手率
             const STABLECOIN_SYMBOLS = ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDP', 'FRAX', 'GUSD', 'PAXG', 'EURS', 'USTC', 'FDUSD'];
 
-            // 并行请求 CoinGecko 第 1 页和第 2 页 (共 500 个代币) 以及 Binance 数据
-            const [cgPage1, cgPage2, binancePriceMap, binanceVolumeMap] = await Promise.all([
+            // 并行请求 CoinGecko 第 1 到 4 页 (每页 250 个，共 1000 个代币) 以及 Binance 数据
+            const [cgPage1, cgPage2, cgPage3, cgPage4, binancePriceMap, binanceVolumeMap] = await Promise.all([
                 fetchCoingeckoPage(1), 
                 fetchCoingeckoPage(2),
+                fetchCoingeckoPage(3), 
+                fetchCoingeckoPage(4), 
                 fetchBinancePrices(),
                 fetchBinance24hrVolume()
             ]);
             
             // 合并 CoinGecko 结果
-            const rawCoinGeckoData = [...cgPage1, ...cgPage2];
+            const rawCoinGeckoData = [...cgPage1, ...cgPage2, ...cgPage3, ...cgPage4];
 
             // 关键过滤：只保留在 Binance USDT 市场中有价格的代币
             const filteredCoinGeckoData = rawCoinGeckoData.filter(token => 
