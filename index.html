@@ -56,13 +56,13 @@
                         <th class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('rank')">#</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('name')">名称</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('priceUSD')">价格 (USD)</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden sm:table-cell" onclick="sortData('ath')">历史最高价 (ATH)</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden sm:table-cell" onclick="sortData('dropFromAthPercent')">跌幅比 (ATH)</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden sm:table-cell" onclick="sortData('volume24hUSD')">24H 交易量</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden sm:table-cell" onclick="sortData('priceChangePercent24h')">24小时涨跌幅</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('ath')">历史最高价 (ATH)</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('dropFromAthPercent')">跌幅比 (ATH)</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('volume24hUSD')">24H 交易量</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('priceChangePercent24h')">24小时涨跌幅</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('circulatingMarketCapUSD')">流通市值</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('turnoverRate')">换手率 (24H)</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden md:table-cell" onclick="sortData('sector')">板块 (赛道)</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('sector')">板块 (赛道)</th>
                     </tr>
                 </thead>
                 <tbody id="token-list-body" class="divide-y divide-gray-700">
@@ -671,8 +671,8 @@
                 const athText = athPrice !== null && athPrice > 0 ? formatCurrency(athPrice) : 'N/A';
                 const athColor = athPrice !== null && athPrice > 0 ? 'text-gray-300' : 'text-gray-500'; // N/A 仍为更深的灰色
                 
-                // 只有在屏幕宽度大于 sm 时才显示
-                row.innerHTML += `<td class="px-4 py-4 ${financeDataClass} ${athColor} hidden sm:table-cell">${athText}</td>`;
+                // **移除了 hidden sm:table-cell，移动端可见**
+                row.innerHTML += `<td class="px-4 py-4 ${financeDataClass} ${athColor}">${athText}</td>`;
 
                 // 5. 跌幅比 (ATH) - **保留颜色突出显示状态**
                 const dropRatio = token.dropFromAthPercent;
@@ -693,15 +693,17 @@
                     }
                 }
                 
-                // 只有在屏幕宽度大于 sm 时才显示
-                row.innerHTML += `<td class="px-4 py-4 ${financeDataClass} ${dropRatioColor} hidden sm:table-cell">${dropRatioText}</td>`; 
+                // **移除了 hidden sm:table-cell，移动端可见**
+                row.innerHTML += `<td class="px-4 py-4 ${financeDataClass} ${dropRatioColor}">${dropRatioText}</td>`; 
 
                 // 6. 24H 交易量 (Binance USDT) - **统一改为 text-gray-300 (#D1D5DB)**
                 // text-gray-300 对应 #D1D5DB
-                row.innerHTML += `<td class="px-4 py-4 ${financeDataClass} text-gray-300 hidden sm:table-cell">${formatCompact(token.volume24hUSD)}</td>`;
+                // **移除了 hidden sm:table-cell，移动端可见**
+                row.innerHTML += `<td class="px-4 py-4 ${financeDataClass} text-gray-300">${formatCompact(token.volume24hUSD)}</td>`;
 
                 // 7. 24小时涨跌幅 - **保留颜色突出显示状态**
-                row.innerHTML += `<td class="px-4 py-4 ${financeDataClass} ${changeClass} hidden sm:table-cell">${changeText}</td>`;
+                // **移除了 hidden sm:table-cell，移动端可见**
+                row.innerHTML += `<td class="px-4 py-4 ${financeDataClass} ${changeClass}">${changeText}</td>`;
 
                 // 8. 流通市值 - **统一改为 text-gray-300 (#D1D5DB)**
                 row.innerHTML += `<td class="px-4 py-4 ${financeDataClass} text-gray-300">${formatCompact(token.circulatingMarketCapUSD)}</td>`;
@@ -722,7 +724,8 @@
                 
                 // 10. 板块 (行业/赛道) - **根据用户要求，文字颜色和大小统一**
                 const sectorColor = token.sector === 'N/A' ? 'text-gray-500' : 'text-gray-300';
-                row.innerHTML += `<td class="px-4 py-4 whitespace-nowrap text-sm ${sectorColor} hidden md:table-cell">${token.sector}</td>`;
+                // **移除了 hidden md:table-cell，移动端可见**
+                row.innerHTML += `<td class="px-4 py-4 whitespace-nowrap text-sm ${sectorColor}">${token.sector}</td>`;
 
                 tbody.appendChild(row);
             });
