@@ -27,6 +27,7 @@
              /* 统一使用 font-mono, text-sm, font-semibold */
             @apply text-sm text-right font-mono font-semibold whitespace-nowrap;
         }
+        /* 移除了旧的分页按钮样式，现在全部使用 JavaScript 内部的 Tailwind 类 */
     </style>
 </head>
 <body class="p-4 sm:p-8">
@@ -87,10 +88,20 @@
                 </tbody>
             </table>
         </div>
+        
+        <!-- 新增：分页控制容器 - 居中且紧凑 -->
+        <!-- 容器内增加了 gap-2 来匹配图片样式 -->
+        <div id="pagination-controls" class="flex justify-center items-center gap-2 mt-6 p-4 bg-[#161b22] rounded-xl">
+            <!-- 分页按钮将通过 JavaScript 渲染 -->
+        </div>
+        <!-- 结束：分页控制容器 -->
 
-        <footer class="mt-8 text-center text-xs text-gray-500 p-4">
-            <p>价格/24H交易量源自 Binance API；**跌幅比 (ATH)** 由 Binance 价格和 CoinGecko 历史最高价计算得出 (**稳定币已排除**)。流通市值 = CoinGecko流通供应量 * Binance价格；换手率（稳定币除外）基于 Binance 交易量和计算市值；24H涨跌幅源自 CoinGecko API。</p>
-            <p class="mt-2 text-yellow-400">**板块 (赛道) 数据特别说明：** 此字段使用我们手动维护的、参考 **RootData** 赛道分类标准整理的 **预设映射表** (SECTOR_MAP) 进行展示。由于浏览器安全策略（CORS）限制以及外部平台官方 API Key 的要求，我们无法在前端直接获取实时标签数据。</p>
+        <!-- FOOTER: 统一为 text-xs 和 text-gray-500 (#6B7280) -->
+        <footer class="mt-8 text-center p-4">
+            <!-- 统一使用 text-xs 和 text-gray-500 -->
+            <p class="text-xs text-gray-500">价格/24H交易量源自 Binance API；**跌幅比 (ATH)** 由 Binance 价格和 CoinGecko 历史最高价计算得出 (**稳定币已排除**)。流通市值 = CoinGecko流通供应量 * Binance价格；换手率（稳定币除外）基于 Binance 交易量和计算市值；24H涨跌幅源自 CoinGecko API。</p>
+            <!-- 统一使用 text-xs 和 text-gray-500 -->
+            <p class="text-xs text-gray-500 mt-2">**板块 (赛道) 数据特别说明：** 此字段使用我们手动维护的、参考 **RootData** 赛道分类标准整理的 **预设映射表** (SECTOR_MAP) 进行展示。由于浏览器安全策略（CORS）限制以及外部平台官方 API Key 的要求，我们无法在前端直接获取实时标签数据。</p>
         </footer>
     </div>
 
@@ -101,10 +112,14 @@
         const BINANCE_24HR_TICKER_API_URL = 'https://api.binance.com/api/v3/ticker/24hr';
 
 
-        // 初始排序设置为 24H 交易量降序 (满足用户需求)
-        let currentSort = { column: 'volume24hUSD', direction: 'desc' }; 
+        // 初始排序设置为 排名升序 (满足用户需求)
+        let currentSort = { column: 'rank', direction: 'asc' }; 
         let allTokens = [];
         let refreshIntervalId = null;
+        
+        // 新增分页状态
+        let currentPage = 1;
+        const itemsPerPage = 100; // 每页显示 100 条记录
         
         // 预定义主要代币的板块/赛道信息。这是一个本地维护的映射表，以绕过 API 限制。
         // 数据参考 RootData 等权威来源的赛道划分，确保分类的准确性。
@@ -298,6 +313,7 @@
                         // quoteVolume 相当于以 USD 衡量的交易额
                         volumeMap.set(baseAsset, parseFloat(ticker.quoteVolume)); 
                     }
+                    // 确保 USDT-USDT 这种不存在的交易对不被处理
                 });
                 return volumeMap;
             } catch (error) {
@@ -336,6 +352,11 @@
             const binancePriceMap = binancePriceMapResult.status === 'fulfilled' ? binancePriceMapResult.value : new Map();
             const binanceVolumeMap = binanceVolumeMapResult.status === 'fulfilled' ? binanceVolumeMapResult.value : new Map();
 
+            // === 增加清晰度日志：原始数据量 ===
+            const rawCount = rawCoinGeckoData.length;
+            console.log(`[数据源] CoinGecko 原始数据 (前 1000) 总计: ${rawCount} 个。`);
+            // ======================================
+
             if (rawCoinGeckoData.length === 0) {
                  throw new Error("未能从 CoinGecko 获取任何数据，请检查 API 状态和网络连接。");
             }
@@ -344,6 +365,10 @@
             const filteredCoinGeckoData = rawCoinGeckoData.filter(token => 
                 binancePriceMap.has(token.symbol.toUpperCase())
             );
+            
+            // === 增加清晰度日志：过滤后数据量 ===
+            console.log(`[过滤结果] 经过 Binance USDT 交易对过滤后，剩余可显示代币: ${filteredCoinGeckoData.length} 个。`);
+            // ======================================
 
             // 【优化】更清晰的控制台警告
             if (filteredCoinGeckoData.length === 0 && binancePriceMap.size > 0) {
@@ -427,6 +452,7 @@
                 currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
             } else {
                 currentSort.column = column;
+                // 'rank'（排名）应该默认升序（从小到大）
                 currentSort.direction = (['rank', 'name', 'symbol', 'sector'].includes(column)) ? 'asc' : 'desc'; 
             }
             
@@ -434,7 +460,7 @@
             const toSortableValue = (val, col) => {
                 if (val === null || val === undefined) {
                     // 对于数值列，如果为空，返回一个极值以便排序时将它们放在末尾
-                    if (col === 'rank' || col === 'volume24hUSD' || col === 'circulatingMarketCapUSD') return currentSort.direction === 'asc' ? Infinity : -Infinity;
+                    if (col === 'rank' || col === 'volume24hUSD' || col === 'circulatingMarketCapUSD' || col === 'priceUSD') return currentSort.direction === 'asc' ? Infinity : -Infinity;
                     // 对于百分比和价格，返回一个中性值或极值
                     if (typeof val === 'number') return isNaN(val) ? 0 : val;
                     // 字符串类型，返回 'zzz' 或 'aaa' 以便于排序
@@ -460,8 +486,130 @@
                 return currentSort.direction === 'asc' ? comparison : comparison * -1;
             });
 
+            // 排序后，重置到当前页并渲染
             renderTable(allTokens);
         }
+
+        /**
+         * 跳转到指定页面并重新渲染
+         * @param {number} page
+         */
+        function goToPage(page) {
+            const searchValue = document.getElementById('search-input').value.toLowerCase();
+            const filteredTokens = allTokens.filter(token =>
+                token.name.toLowerCase().includes(searchValue) ||
+                token.symbol.toLowerCase().includes(searchValue)
+            );
+
+            const totalPages = Math.ceil(filteredTokens.length / itemsPerPage);
+            
+            if (page >= 1 && page <= totalPages) {
+                currentPage = page;
+                renderTable(allTokens);
+                // 滚动到表格顶部以改善用户体验
+                document.querySelector('.max-w-screen-2xl').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+        
+        /**
+         * 渲染分页控制按钮 (模仿 CoinMarketCap 风格)
+         * @param {number} totalItems - 总过滤后的代币数量
+         */
+        function renderPaginationControls(totalItems) {
+            const paginationContainer = document.getElementById('pagination-controls');
+            paginationContainer.innerHTML = '';
+            
+            if (totalItems <= itemsPerPage) return; // 不需要分页
+
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+            // 辅助函数：创建分页按钮 (数字页码或省略号)
+            const createPageButton = (pageNum, content) => {
+                content = content !== undefined ? content : pageNum.toString();
+                const isActive = pageNum === currentPage;
+                const isEllipsis = content === '...';
+                
+                const btn = document.createElement('button');
+                btn.innerHTML = content;
+                
+                // 基础样式
+                let className = 'w-10 h-10 flex items-center justify-center rounded-xl text-base font-semibold transition duration-150 mx-0.5';
+
+                if (isEllipsis) {
+                    // 省略号样式
+                    className += ' bg-transparent text-gray-500 cursor-default';
+                    btn.disabled = true;
+                } else if (isActive) {
+                    // 当前活动页样式 (蓝色背景，更圆润)
+                    className += ' bg-blue-600 text-white shadow-lg';
+                    btn.disabled = true; // 活动按钮不可点击
+                } else {
+                    // 非活动页样式 (深灰色背景，白色文字)
+                    className += ' bg-gray-800 text-white hover:bg-gray-700';
+                    btn.onclick = () => goToPage(pageNum);
+                }
+                btn.className = className;
+                return btn;
+            }
+            
+            // 辅助函数：创建箭头按钮 (< 或 >)
+            const createArrowButton = (pageNum, content, isEnabled) => {
+                const arrow = document.createElement('button');
+                arrow.innerHTML = content;
+                
+                // 箭头样式
+                const baseClass = 'w-8 h-8 flex items-center justify-center rounded-lg text-lg font-bold transition duration-200 cursor-pointer mx-2';
+                arrow.className = baseClass + (isEnabled ? ' text-white hover:text-blue-400' : ' text-gray-600 cursor-not-allowed');
+                
+                arrow.disabled = !isEnabled;
+                if (isEnabled) {
+                    arrow.onclick = () => goToPage(pageNum);
+                }
+                return arrow;
+            }
+
+            // --- 1. 渲染向左箭头 (<) ---
+            const prevArrow = createArrowButton(currentPage - 1, '<', currentPage > 1);
+            paginationContainer.appendChild(prevArrow);
+
+            // --- 2. 核心页码渲染逻辑 ---
+            let pagesToShow = [];
+            const maxPagesAround = 2; // 当前页左右各显示 2 个页码 (共 5 个中心页码)
+            
+            // 始终添加第 1 页
+            if (totalPages >= 1) pagesToShow.push(1);
+            
+            // 添加当前页周围的页码
+            for (let i = currentPage - maxPagesAround; i <= currentPage + maxPagesAround; i++) {
+                if (i > 1 && i < totalPages) { // 排除 1 和最后一页
+                    pagesToShow.push(i);
+                }
+            }
+
+            // 始终添加最后一页
+            if (totalPages > 1) pagesToShow.push(totalPages);
+
+            // 排序并去重
+            pagesToShow = Array.from(new Set(pagesToShow)).sort((a, b) => a - b);
+            
+            let lastRenderedPage = 0;
+            
+            pagesToShow.forEach(p => {
+                // 如果页码之间有大于 1 的间隔，则插入省略号
+                if (p > lastRenderedPage + 1) {
+                    paginationContainer.appendChild(createPageButton(null, '...'));
+                }
+                
+                // 渲染页码按钮
+                paginationContainer.appendChild(createPageButton(p));
+                lastRenderedPage = p;
+            });
+
+            // --- 3. 渲染向右箭头 (>) ---
+            const nextArrow = createArrowButton(currentPage + 1, '>', currentPage < totalPages);
+            paginationContainer.appendChild(nextArrow);
+        }
+
 
         /**
          * 渲染代币列表表格
@@ -479,16 +627,31 @@
                 token.name.toLowerCase().includes(searchValue) ||
                 token.symbol.toLowerCase().includes(searchValue)
             );
+            
+            // 根据过滤结果，调整当前页码
+            const totalPages = Math.ceil(filteredTokens.length / itemsPerPage);
+            if (currentPage > totalPages && totalPages > 0) {
+                currentPage = totalPages;
+            } else if (totalPages === 0) {
+                currentPage = 1;
+            }
 
             if (filteredTokens.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="${colspan}" class="p-8 text-center text-gray-500">未找到匹配的代币。</td></tr>`;
+                renderPaginationControls(0); // 清除分页控件
                 return;
             }
+
+            // === 分页逻辑：切片数据 ===
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const tokensToRender = filteredTokens.slice(startIndex, endIndex);
+            // === 结束分页逻辑 ===
 
             // 定义统一的样式类
             const financeDataClass = 'finance-data'; // 使用 style 标签中定义的 .finance-data 基础类
 
-            filteredTokens.forEach(token => {
+            tokensToRender.forEach(token => {
                 // 价格颜色 (基于涨跌幅)
                 const priceChange = token.priceChangePercent24h || 0;
                 const changeClass = priceChange >= 0 ? 'percent-up' : 'percent-down';
@@ -571,55 +734,78 @@
                 row.innerHTML += `<td class="px-4 py-4 ${financeDataClass} ${turnoverColorClass}">${turnoverText}</td>`;
                 
                 // 10. 板块 (行业/赛道) - **根据用户要求，文字颜色和大小统一**
-                // 颜色统一为 text-gray-300，大小统一为 text-sm
                 const sectorColor = token.sector === 'N/A' ? 'text-gray-500' : 'text-gray-300';
                 row.innerHTML += `<td class="px-4 py-4 whitespace-nowrap text-sm ${sectorColor} hidden md:table-cell">${token.sector}</td>`;
 
                 tbody.appendChild(row);
             });
+            
+            // 渲染分页控制
+            renderPaginationControls(filteredTokens.length);
         }
 
         /**
-         * 负责获取数据和渲染，并在失败时更新 UI
+         * 启动数据获取和渲染的流程
          */
         async function fetchDataAndRender() {
-             const tbody = document.getElementById('token-list-body');
-             // 10 是现在的列数
-             const colspan = 10;
-             // 立即显示加载状态
-             tbody.innerHTML = `<tr><td colspan="${colspan}" class="p-8 text-center text-gray-500">正在从 CoinGecko 和 Binance API 获取最新数据...</td></tr>`;
-
             try {
-                allTokens = await fetchTokenData();
-                // 默认按 24H 交易量降序排序 (volume24hUSD, desc)
-                sortData(currentSort.column); 
-                console.log("数据刷新成功！");
+                // 首次加载数据时，重置当前页码
+                currentPage = 1; 
+
+                // 在加载时显示加载信息
+                const tbody = document.getElementById('token-list-body');
+                tbody.innerHTML = '<tr><td colspan="10" class="p-8 text-center text-gray-500">正在从 API 获取数据...</td></tr>';
+                document.getElementById('pagination-controls').innerHTML = '';
+
+                // 获取数据
+                const fetchedTokens = await fetchTokenData();
+                allTokens = fetchedTokens;
+
+                // 【实现用户需求：每次加载默认按 #排名（rank）从小到大排列】
+                // 1. 强制设置为默认排序状态：#字段 (rank), 从小到大 (asc)
+                currentSort = { column: 'rank', direction: 'asc' }; 
+                
+                // 2. 应用排序 (手动排序以确保默认是升序，不触发 sortData 的切换逻辑)
+                allTokens.sort((a, b) => {
+                    // rank 字段为空（null/undefined）的排在最后
+                    const aVal = a.rank || Infinity;
+                    const bVal = b.rank || Infinity;
+                    // 升序排序
+                    return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+                });
+                
+                // 3. 渲染第一页
+                renderTable(allTokens); 
+
             } catch (error) {
-                // 改进错误处理：向用户展示更清晰的错误信息
-                const errorMessage = `数据加载失败。请检查控制台了解 API 详情。错误信息：${error.message || '未知网络错误'}`;
-                tbody.innerHTML = `<tr><td colspan="${colspan}" class="p-8 text-center text-red-400">${errorMessage}</td></tr>`;
-                console.error("加载数据时发生致命错误:", error);
+                console.error("加载数据时发生错误:", error);
+                const tbody = document.getElementById('token-list-body');
+                tbody.innerHTML = `<tr><td colspan="10" class="p-8 text-center text-red-400">数据加载失败：${error.message}。请检查控制台了解详情。</td></tr>`;
+                document.getElementById('pagination-controls').innerHTML = '';
             }
         }
 
         /**
          * 初始化函数：设置定时刷新
          */
-        async function initialize() {
+        function initialize() {
             // 4 小时 = 4 * 60 * 60 * 1000 = 14,400,000 毫秒
             const refreshRate = 14400000; 
-            // const refreshRate = 30000; // 30秒测试用
-
+            
             // 首次立即加载数据
-            await fetchDataAndRender();
+            fetchDataAndRender();
             
             // 设置定时刷新
             refreshIntervalId = setInterval(fetchDataAndRender, refreshRate);
             console.log(`已设置每 ${refreshRate / 3600000} 小时自动刷新数据。`);
         }
 
-        // 绑定搜索事件
-        document.getElementById('search-input').addEventListener('input', () => renderTable(allTokens));
+        // 绑定搜索事件：搜索时重置到第一页
+        // 注意：将事件监听器放在 initialize 函数之后或在 DOMContentLoaded 内部执行，确保 input 元素已存在
+        document.getElementById('search-input').addEventListener('input', () => {
+            currentPage = 1; // 搜索时重置到第 1 页
+            renderTable(allTokens);
+        });
 
         // 页面加载完成后启动
         window.onload = initialize;
