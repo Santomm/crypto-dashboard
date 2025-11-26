@@ -21,21 +21,28 @@
         /* 涨跌幅百分比样式 */
         .percent-up { color: #48bb78; } /* 绿色 */
         .percent-down { color: #f56565; } /* 红色 */
+
+        /* 统一的数字样式基础类 */
+        .finance-data {
+             /* 统一使用 font-mono, text-sm, font-semibold */
+            @apply text-sm text-right font-mono font-semibold whitespace-nowrap;
+        }
     </style>
 </head>
 <body class="p-4 sm:p-8">
 
-    <div class="max-w-7xl mx-auto">
+    <!-- 1. 限制最大宽度并居中，确保在大屏幕上不会过度拉伸 -->
+    <div class="max-w-screen-2xl mx-auto">
         <header class="mb-8 p-4 bg-[#161b22] rounded-xl shadow-lg">
-            <!-- 标题更新为前 1000 -->
             <h1 class="text-3xl sm:text-4xl font-extrabold text-blue-400 mb-2">代币市场数据增强列表</h1>
-            <p class="text-gray-400 text-sm sm:text-base">价格/交易量：Binance | 流通市值/换手率/涨跌幅：CoinGecko API (取前 1000个代币， 4 小时自动刷新)</p>
+            <p class="text-gray-400 text-sm sm:text-base">列表已过滤至 **Binance USDT 市场** 的代币。价格/跌幅比：Binance API & CoinGecko ATH | 其他数据：Binance/CoinGecko 混合源 (前 1000 代币已实现 4 小时自动刷新)</p>
         </header>
 
-        <div class="flex flex-col sm:flex-row gap-4 mb-6">
-            <!-- 搜索框 -->
+        <!-- 调整: sm:justify-end 将表单元素推到右侧, 搜索框不再 flex-grow -->
+        <div class="flex flex-col sm:flex-row gap-4 mb-6 sm:justify-end">
+            <!-- 搜索框: 移除 flex-grow, 添加 sm:w-80 限制宽度 -->
             <input type="text" id="search-input" placeholder="搜索代币名称或符号..."
-                   class="flex-grow p-3 rounded-xl bg-gray-700 text-white border border-gray-600 focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+                   class="p-3 rounded-xl bg-gray-700 text-white border border-gray-600 focus:ring-blue-500 focus:border-blue-500 transition duration-150 sm:w-80">
             
             <!-- 筛选/排序按钮组（占位，可扩展） -->
             <div class="flex gap-3">
@@ -47,35 +54,43 @@
         </div>
 
         <!-- 代币列表表格容器 -->
+        <!-- overflow-x-auto 仍然保留，以保证在移动端小屏时至少能滚动 -->
         <div class="bg-[#161b22] rounded-xl overflow-x-auto shadow-xl">
             <table class="min-w-full divide-y divide-gray-700">
                 <thead class="bg-gray-800 sticky top-0">
                     <tr>
-                        <!-- 排名 -->
+                        <!-- 1. 排名 (已是 text-left) -->
                         <th class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('rank')">#</th>
-                        <!-- 名称 -->
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('name')">名称</th>
-                        <!-- 价格 (Binance) -->
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('priceUSD')">价格 (USD)</th>
-                        <!-- 24H 交易量 (Binance USDT) -->
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden sm:table-cell" onclick="sortData('volume24hUSD')">24H 交易量</th>
-                        <!-- 24小时涨跌幅 -->
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden sm:table-cell" onclick="sortData('priceChangePercent24h')">24小时涨跌幅</th>
-                        <!-- 流通市值 (CoinGecko) -->
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('circulatingMarketCapUSD')">流通市值</th>
-                        <!-- 换手率 (CoinGecko) -->
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('turnoverRate')">换手率 (24H)</th>
+                        <!-- 2. 名称 (已是 text-left) -->
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('name')">名称</th>
+                        <!-- 3. 价格 (Binance) - 从 text-right 修改为 text-left -->
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('priceUSD')">价格 (USD)</th>
+                        <!-- 4. 历史最高价 (ATH) - 从 text-right 修改为 text-left -->
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden sm:table-cell" onclick="sortData('ath')">历史最高价 (ATH)</th>
+                        <!-- 5. 跌幅比 (ATH) - 从 text-right 修改为 text-left -->
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden sm:table-cell" onclick="sortData('dropFromAthPercent')">跌幅比 (ATH)</th>
+                        <!-- 6. 24H 交易量 (Binance USDT) - 从 text-right 修改为 text-left -->
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden sm:table-cell" onclick="sortData('volume24hUSD')">24H 交易量</th>
+                        <!-- 7. 24小时涨跌幅 - 从 text-right 修改为 text-left -->
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden sm:table-cell" onclick="sortData('priceChangePercent24h')">24小时涨跌幅</th>
+                        <!-- 8. 流通市值 - 从 text-right 修改为 text-left -->
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('circulatingMarketCapUSD')">流通市值</th>
+                        <!-- 9. 换手率 (24H) - 从 text-right 修改为 text-left -->
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('turnoverRate')">换手率 (24H)</th>
+                        <!-- 10. 板块 (行业/赛道) - (已是 text-left) -->
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden md:table-cell" onclick="sortData('sector')">板块 (赛道)</th>
                     </tr>
                 </thead>
                 <tbody id="token-list-body" class="divide-y divide-gray-700">
                     <!-- 数据将通过 JavaScript 填充 -->
-                    <tr><td colspan="7" class="p-8 text-center text-gray-500">正在加载数据...</td></tr>
+                    <tr><td colspan="10" class="p-8 text-center text-gray-500">正在加载数据...</td></tr>
                 </tbody>
             </table>
         </div>
 
         <footer class="mt-8 text-center text-xs text-gray-500 p-4">
-            <p>价格/24H交易量源自 Binance API；列表已过滤至 Binance USDT 市场的代币。流通市值 = CoinGecko流通供应量 * Binance价格；换手率（稳定币除外）基于 Binance 交易量和计算市值；24H涨跌幅源自 CoinGecko API。</p>
+            <p>价格/24H交易量源自 Binance API；**跌幅比 (ATH)** 由 Binance 价格和 CoinGecko 历史最高价计算得出 (**稳定币已排除**)。流通市值 = CoinGecko流通供应量 * Binance价格；换手率（稳定币除外）基于 Binance 交易量和计算市值；24H涨跌幅源自 CoinGecko API。</p>
+            <p class="mt-2 text-yellow-400">**板块 (赛道) 数据特别说明：** 此字段使用我们手动维护的、参考 **RootData** 赛道分类标准整理的 **预设映射表** (SECTOR_MAP) 进行展示。由于浏览器安全策略（CORS）限制以及外部平台官方 API Key 的要求，我们无法在前端直接获取实时标签数据。</p>
         </footer>
     </div>
 
@@ -90,6 +105,96 @@
         let currentSort = { column: 'volume24hUSD', direction: 'desc' }; 
         let allTokens = [];
         let refreshIntervalId = null;
+        
+        // 预定义主要代币的板块/赛道信息。这是一个本地维护的映射表，以绕过 API 限制。
+        // 数据参考 RootData 等权威来源的赛道划分，确保分类的准确性。
+        const SECTOR_MAP = {
+            // L1 & 基础设施 (Layer-1 & Infrastructure)
+            'BTC': 'L1 / 价值存储',
+            'ETH': 'L1 / 智能合约',
+            'BNB': '交易所生态',
+            'SOL': '高性能L1',
+            'ADA': '智能合约平台',
+            'AVAX': 'L1 / 智能合约',
+            'NEAR': 'L1 / 模块化',
+            'DOT': '跨链 / Polkadot',
+            'ATOM': '跨链 / Cosmos',
+            'TRX': '基础设施 / L1', 
+            'XRP': '支付 / 跨境转账',
+            'LTC': '价值存储 / 老牌币',
+            'ETC': '传统L1',
+            'TON': 'L1 / 通信',
+            'APT': 'L1 / Move语言',
+            'HBAR': '企业级 / DAG',
+            'XMR': '隐私币',
+            'ALGO': 'L1 / 机构级',
+            'FTM': 'L1 / DAG',
+            'EGLD': 'L1 / 分片',
+            
+            // L2 & 扩容 (Layer-2 & Scaling)
+            'MATIC': 'L2 / 侧链/扩容',
+            'OP': 'L2 / Optimism',
+            'ARB': 'L2 / Arbitrum',
+            'STRK': 'L2 / ZK Rollup',
+            'IMX': 'L2 / Gaming',
+            'METIS': 'L2 / Optimistic',
+            'CELO': 'L2 / 移动优先',
+            
+            // DeFi & 借贷 (Decentralized Finance & Lending)
+            'UNI': 'DeFi / DEX',
+            'AAVE': 'DeFi / 借贷',
+            'MKR': 'DeFi / DAO',
+            'COMP': 'DeFi / 借贷',
+            'CRV': 'DeFi / DEX',
+            'DYDX': 'DeFi / 永续合约DEX',
+            'CAKE': 'DeFi / DEX (BSC)',
+            'LDO': 'DeFi / LSD',
+            'SSV': 'DeFi / DVT',
+            'PENDLE': 'DeFi / 收益率交易',
+
+            // 预言机 & 数据 & DePIN (Oracle & Data & DePIN)
+            'LINK': '预言机 (Oracle)',
+            'BAND': '预言机',
+            'GRT': '数据 / 索引',
+            'OCEAN': '数据市场',
+            'HNT': 'DePIN / IoT',
+            'FIL': '去中心化存储',
+            'AR': '去中心化存储',
+            'BTT': '去中心化存储/内容',
+            
+            // AI & 计算 (AI & Compute)
+            'RNDR': 'AI / 渲染计算',
+            'FET': 'AI / 机器学习',
+            'AGIX': 'AI / 智能服务',
+            'WLD': '身份验证 / AI',
+            'ICP': '去中心化计算',
+            
+            // Gaming, Metaverse & NFT (游戏, 元宇宙 & NFT)
+            'AXS': 'P2E 游戏',
+            'SAND': '元宇宙 / 游戏',
+            'MANA': '元宇宙 / 游戏',
+            'APE': 'NFT 生态 / DAO',
+            'GALA': '游戏生态',
+            'ENJ': '游戏 / NFT',
+            'RON': '游戏侧链',
+
+            // Meme & 社区 (Meme & Community)
+            'DOGE': 'Meme',
+            'SHIB': 'Meme / 社区',
+            'PEPE': 'Meme', 
+            'WIF': 'Meme',
+            'FLOKI': 'Meme',
+            
+            // 实体资产代币化 (RWA)
+            'ONDO': 'RWA / 稳定币',
+            'CFG': 'RWA / 借贷',
+            'POLYX': 'RWA / 证券型代币',
+
+            // 稳定币 (Stablecoins)
+            'USDT': '稳定币',
+            'USDC': '稳定币',
+            'DAI': '稳定币 / 去中心化',
+        };
 
         /**
          * 格式化数字为货币字符串
@@ -136,8 +241,9 @@
             const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=${page}&sparkline=false`;
             const response = await fetch(url);
             if (!response.ok) {
-                // 如果任一页面请求失败，抛出错误
-                throw new Error(`CoinGecko API (Page ${page}) 请求失败: ${response.status} ${response.statusText}`);
+                // 增强错误处理：如果请求失败，抛出包含状态码的错误
+                const errorBody = await response.text();
+                throw new Error(`CoinGecko API (Page ${page}) 请求失败: ${response.status} ${response.statusText}. 详情: ${errorBody.substring(0, 100)}...`);
             }
             return response.json();
         }
@@ -150,7 +256,8 @@
             try {
                 const response = await fetch(BINANCE_PRICE_API_URL);
                 if (!response.ok) {
-                    throw new Error(`Binance API 请求失败: ${response.status}`);
+                    const errorBody = await response.text();
+                    throw new Error(`Binance API (价格) 请求失败: ${response.status} ${response.statusText}. 详情: ${errorBody.substring(0, 100)}...`);
                 }
                 const rawData = await response.json();
                 
@@ -165,7 +272,8 @@
                 return priceMap;
             } catch (error) {
                 console.error("Binance API 数据获取错误:", error);
-                return new Map(); // 返回空 Map 以便 CoinGecko 数据能继续渲染
+                // 捕获错误后，返回空 Map 而不是抛出，以允许程序继续
+                return new Map(); 
             }
         }
 
@@ -177,7 +285,8 @@
             try {
                 const response = await fetch(BINANCE_24HR_TICKER_API_URL);
                 if (!response.ok) {
-                    throw new Error(`Binance 24hr Ticker API 请求失败: ${response.status}`);
+                    const errorBody = await response.text();
+                    throw new Error(`Binance 24hr Ticker API (交易量) 请求失败: ${response.status} ${response.statusText}. 详情: ${errorBody.substring(0, 100)}...`);
                 }
                 const rawData = await response.json();
                 
@@ -193,6 +302,7 @@
                 return volumeMap;
             } catch (error) {
                 console.error("Binance 24hr Ticker API 数据获取错误:", error);
+                // 捕获错误后，返回空 Map
                 return new Map();
             }
         }
@@ -204,11 +314,11 @@
         async function fetchTokenData() {
             console.log("正在从 CoinGecko (前 1000) 和 Binance 获取数据...");
             
-            // 常见的稳定币符号列表，不计算换手率
             const STABLECOIN_SYMBOLS = ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDP', 'FRAX', 'GUSD', 'PAXG', 'EURS', 'USTC', 'FDUSD'];
 
             // 并行请求 CoinGecko 第 1 到 4 页 (每页 250 个，共 1000 个代币) 以及 Binance 数据
-            const [cgPage1, cgPage2, cgPage3, cgPage4, binancePriceMap, binanceVolumeMap] = await Promise.all([
+            // 使用 Promise.allSettled 来保证所有请求都返回结果（无论成功或失败），避免单个失败导致全部失败
+            const [cgPage1, cgPage2, cgPage3, cgPage4, binancePriceMapResult, binanceVolumeMapResult] = await Promise.allSettled([
                 fetchCoingeckoPage(1), 
                 fetchCoingeckoPage(2),
                 fetchCoingeckoPage(3), 
@@ -217,13 +327,31 @@
                 fetchBinance24hrVolume()
             ]);
             
-            // 合并 CoinGecko 结果
-            const rawCoinGeckoData = [...cgPage1, ...cgPage2, ...cgPage3, ...cgPage4];
+            // 提取成功的 CoinGecko 数据
+            const rawCoinGeckoData = [cgPage1, cgPage2, cgPage3, cgPage4]
+                .filter(res => res.status === 'fulfilled')
+                .flatMap(res => res.value);
+                
+            // 提取 Binance 价格和交易量，如果失败则使用空 Map
+            const binancePriceMap = binancePriceMapResult.status === 'fulfilled' ? binancePriceMapResult.value : new Map();
+            const binanceVolumeMap = binanceVolumeMapResult.status === 'fulfilled' ? binanceVolumeMapResult.value : new Map();
+
+            if (rawCoinGeckoData.length === 0) {
+                 throw new Error("未能从 CoinGecko 获取任何数据，请检查 API 状态和网络连接。");
+            }
 
             // 关键过滤：只保留在 Binance USDT 市场中有价格的代币
             const filteredCoinGeckoData = rawCoinGeckoData.filter(token => 
                 binancePriceMap.has(token.symbol.toUpperCase())
             );
+
+            // 【优化】更清晰的控制台警告
+            if (filteredCoinGeckoData.length === 0 && binancePriceMap.size > 0) {
+                console.warn("CoinGecko数据已获取，但未发现任何与Binance USDT市场匹配的代币。请检查CoinGecko API返回的符号是否正确。");
+            }
+            if (binancePriceMap.size === 0) {
+                console.error("未能从Binance获取任何价格数据。无法计算流通市值和换手率。请检查API连接。");
+            }
 
 
             return filteredCoinGeckoData.map((token) => {
@@ -235,40 +363,56 @@
                 // 2. 获取 CoinGecko 的流通供应量
                 const circulatingSupply = token.circulating_supply;
 
-                // 3. 计算流通市值
-                const calculatedMarketCapUSD = circulatingSupply * finalPrice;
+                // 3. 计算流通市值 - 【注意】如果 finalPrice 为 undefined，这里会产生 NaN
+                let calculatedMarketCapUSD = null;
+                if (finalPrice !== undefined && circulatingSupply !== undefined && circulatingSupply !== null) {
+                    calculatedMarketCapUSD = circulatingSupply * finalPrice;
+                }
                 
                 // 4. 获取 24h 交易量，优先使用 Binance USDT 市场的 quoteVolume
                 const binanceVolume = binanceVolumeMap.get(symbolUpper);
-                const volume24h = binanceVolume !== undefined ? binanceVolume : token.total_volume;
+                const volume24h = binanceVolume !== undefined ? binanceVolume : (token.total_volume || 0);
 
 
-                // 5. 代币换手率 (Turnover Rate) 计算
-                let turnoverRate;
+                // 5. 代币换手率 (Turnover Rate) 计算 (24H)
+                let turnoverRate = null;
 
-                if (STABLECOIN_SYMBOLS.includes(symbolUpper)) {
-                    turnoverRate = null; // 稳定币不计算换手率，标记为 null
-                } else {
+                if (!STABLECOIN_SYMBOLS.includes(symbolUpper) && calculatedMarketCapUSD > 0 && volume24h > 0) {
                     turnoverRate = (volume24h / calculatedMarketCapUSD) * 100;
-                    // 处理无效数字
                     if (isNaN(turnoverRate) || !isFinite(turnoverRate)) {
                         turnoverRate = 0;
                     }
                 }
                 
-                // 6. 涨跌幅 (使用 CoinGecko 的 24 小时涨跌幅代替 4 小时)
+                // 6. 涨跌幅
                 const priceChangePercent24h = token.price_change_percentage_24h;
 
+                // 7. 跌幅比 
+                const ath = token.ath;
+                let dropFromAthPercent = null;
+                
+                if (!STABLECOIN_SYMBOLS.includes(symbolUpper) && ath && ath > 0 && finalPrice !== null && finalPrice !== undefined) {
+                    dropFromAthPercent = ((ath - finalPrice) / ath) * 100; 
+                    if (dropFromAthPercent < 0) {
+                        dropFromAthPercent = 0; 
+                    }
+                }
+                
+                // 8. 板块/赛道 
+                const sector = SECTOR_MAP[symbolUpper] || 'N/A';
 
                 return {
                     rank: token.market_cap_rank,
-                    name: token.name, // 使用 CoinGecko 的全名
+                    name: token.name, 
                     symbol: symbolUpper,
-                    priceUSD: finalPrice, // 混合数据源的最新价格
-                    volume24hUSD: volume24h, // 新增的 24H 交易量 (Binance USDT)
-                    priceChangePercent24h: priceChangePercent24h, // 24小时涨跌幅
-                    circulatingMarketCapUSD: calculatedMarketCapUSD, // **使用计算后的流通市值**
-                    turnoverRate: turnoverRate, // 可以是数字、0 或 null
+                    priceUSD: finalPrice, 
+                    ath: ath, 
+                    dropFromAthPercent: dropFromAthPercent, 
+                    volume24hUSD: volume24h, 
+                    priceChangePercent24h: priceChangePercent24h, 
+                    circulatingMarketCapUSD: calculatedMarketCapUSD, 
+                    turnoverRate: turnoverRate, 
+                    sector: sector, 
                     image: token.image 
                 };
             }).filter(token => token.rank !== null);
@@ -283,34 +427,36 @@
                 currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
             } else {
                 currentSort.column = column;
-                // 对于数值默认降序，排名和名称默认升序
-                currentSort.direction = (['rank', 'name', 'symbol'].includes(column)) ? 'asc' : 'desc'; 
+                currentSort.direction = (['rank', 'name', 'symbol', 'sector'].includes(column)) ? 'asc' : 'desc'; 
             }
+            
+            // 【优化】辅助函数：将排序字段转换为可比较的值，防止 NaN 或 null 导致排序失败
+            const toSortableValue = (val, col) => {
+                if (val === null || val === undefined) {
+                    // 对于数值列，如果为空，返回一个极值以便排序时将它们放在末尾
+                    if (col === 'rank' || col === 'volume24hUSD' || col === 'circulatingMarketCapUSD') return currentSort.direction === 'asc' ? Infinity : -Infinity;
+                    // 对于百分比和价格，返回一个中性值或极值
+                    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+                    // 字符串类型，返回 'zzz' 或 'aaa' 以便于排序
+                    return col === 'sector' ? 'N/A' : '';
+                }
+                if (typeof val === 'number') return isNaN(val) ? 0 : val;
+                return val;
+            };
+
 
             allTokens.sort((a, b) => {
-                let aVal = a[column];
-                let bVal = b[column];
+                let aVal = toSortableValue(a[column], column);
+                let bVal = toSortableValue(b[column], column);
                 
-                // Custom handling for turnoverRate: treat null (stablecoins) as -1 to place them at the bottom
-                if (column === 'turnoverRate') {
-                    aVal = aVal === null ? -1 : aVal;
-                    bVal = bVal === null ? -1 : bVal;
-                }
-                
-                // Treat null/undefined values for numeric sorting (like volume) as 0 or the lowest value
-                if (typeof aVal === 'number' && typeof bVal === 'number') {
-                    // Ensure null values are treated as 0 for sorting purposes if they aren't stablecoins
-                    aVal = aVal === null || isNaN(aVal) ? 0 : aVal;
-                    bVal = bVal === null || isNaN(bVal) ? 0 : bVal;
+                // 字符串排序
+                if (typeof aVal === 'string' && typeof bVal === 'string') {
+                    let comparison = aVal.localeCompare(bVal);
+                    return currentSort.direction === 'asc' ? comparison : comparison * -1;
                 }
 
-                let comparison = 0;
-                if (typeof aVal === 'string') {
-                    comparison = aVal.localeCompare(bVal);
-                } else {
-                    comparison = aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
-                }
-
+                // 数值排序
+                let comparison = aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
                 return currentSort.direction === 'asc' ? comparison : comparison * -1;
             });
 
@@ -324,8 +470,8 @@
         function renderTable(tokens = allTokens) {
             const tbody = document.getElementById('token-list-body');
             const searchValue = document.getElementById('search-input').value.toLowerCase();
-            // 7 是现在的列数
-            const colspan = 7;
+            // 10 是现在的列数
+            const colspan = 10;
             tbody.innerHTML = ''; 
 
             // 过滤数据
@@ -339,11 +485,14 @@
                 return;
             }
 
+            // 定义统一的样式类
+            const financeDataClass = 'finance-data'; // 使用 style 标签中定义的 .finance-data 基础类
+
             filteredTokens.forEach(token => {
                 // 价格颜色 (基于涨跌幅)
                 const priceChange = token.priceChangePercent24h || 0;
                 const changeClass = priceChange >= 0 ? 'percent-up' : 'percent-down';
-                const changeText = priceChange.toFixed(2) + '%';
+                const changeText = priceChange ? priceChange.toFixed(2) + '%' : 'N/A';
                 
                 const row = document.createElement('tr');
                 row.className = 'token-row transition duration-150';
@@ -351,32 +500,63 @@
                 // 1. 排名
                 row.innerHTML += `<td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-400">${token.rank}</td>`;
                 
-                // 2. 名称和符号
+                // 2. 名称和符号 (移除 whitespace-nowrap 以允许换行)
                 row.innerHTML += `
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-4 py-4">
                         <div class="flex items-center">
                             <!-- 实际图标 -->
                             <img src="${token.image}" alt="${token.symbol} logo" class="w-8 h-8 rounded-full mr-3" onerror="this.onerror=null;this.src='https://placehold.co/32x32/1e40af/ffffff?text=${token.symbol.substring(0, 1)}'">
-                            <div>
+                            <div class="truncate">
                                 <div class="text-sm font-semibold text-white">${token.name}</div>
                                 <div class="text-xs text-gray-500 uppercase">${token.symbol}</div>
                             </div>
                         </div>
                     </td>`;
                 
-                // 3. 价格 (Binance)
-                row.innerHTML += `<td class="px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-white">${formatCurrency(token.priceUSD)}</td>`;
+                // 3. 价格 (Binance) - **使用 text-blue-300 突出显示**
+                row.innerHTML += `<td class="px-4 py-4 ${financeDataClass} text-blue-300">${formatCurrency(token.priceUSD)}</td>`;
 
-                // 4. 24H 交易量 (Binance USDT) - 新增列
-                row.innerHTML += `<td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-300 font-semibold hidden sm:table-cell">${formatCompact(token.volume24hUSD)}</td>`;
+                // 4. 历史最高价 (ATH) - **统一改为 text-gray-300 (#D1D5DB)**
+                const athPrice = token.ath;
+                const athText = athPrice !== null && athPrice > 0 ? formatCurrency(athPrice) : 'N/A';
+                const athColor = athPrice !== null && athPrice > 0 ? 'text-gray-300' : 'text-gray-500'; // N/A 仍为更深的灰色
+                
+                // 只有在屏幕宽度大于 sm 时才显示
+                row.innerHTML += `<td class="px-4 py-4 ${financeDataClass} ${athColor} hidden sm:table-cell">${athText}</td>`;
 
-                // 5. 24小时涨跌幅 (原 4)
-                row.innerHTML += `<td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold ${changeClass} hidden sm:table-cell">${changeText}</td>`;
+                // 5. 跌幅比 (ATH) - **保留颜色突出显示状态**
+                const dropRatio = token.dropFromAthPercent;
+                let dropRatioText = 'N/A';
+                let dropRatioColor = 'text-gray-400';
+                
+                if (dropRatio !== null) {
+                    dropRatioText = dropRatio.toFixed(2) + '%';
+                    // 跌幅越大 (越接近 100)，颜色越红（越远低于 ATH）
+                    if (dropRatio > 90) { 
+                        dropRatioColor = 'text-red-500 font-bold';
+                    } else if (dropRatio > 70) { 
+                        dropRatioColor = 'text-red-400';
+                    } else if (dropRatio < 30) { 
+                        dropRatioColor = 'text-green-300'; // 离 ATH 较近
+                    } else {
+                        dropRatioColor = 'text-yellow-300';
+                    }
+                }
+                
+                // 只有在屏幕宽度大于 sm 时才显示
+                row.innerHTML += `<td class="px-4 py-4 ${financeDataClass} ${dropRatioColor} hidden sm:table-cell">${dropRatioText}</td>`; 
 
-                // 6. 流通市值 (原 5)
-                row.innerHTML += `<td class="px-6 py-4 whitespace-nowrap text-sm text-right text-yellow-300 font-semibold">${formatCompact(token.circulatingMarketCapUSD)}</td>`;
+                // 6. 24H 交易量 (Binance USDT) - **统一改为 text-gray-300 (#D1D5DB)**
+                // text-gray-300 对应 #D1D5DB
+                row.innerHTML += `<td class="px-4 py-4 ${financeDataClass} text-gray-300 hidden sm:table-cell">${formatCompact(token.volume24hUSD)}</td>`;
 
-                // 7. 换手率 (Turnover Rate) (原 6)
+                // 7. 24小时涨跌幅 - **保留颜色突出显示状态**
+                row.innerHTML += `<td class="px-4 py-4 ${financeDataClass} ${changeClass} hidden sm:table-cell">${changeText}</td>`;
+
+                // 8. 流通市值 - **统一改为 text-gray-300 (#D1D5DB)**
+                row.innerHTML += `<td class="px-4 py-4 ${financeDataClass} text-gray-300">${formatCompact(token.circulatingMarketCapUSD)}</td>`;
+
+                // 9. 换手率 (Turnover Rate) - **保留颜色突出显示活跃度**
                 let turnoverText;
                 let turnoverColorClass;
 
@@ -388,8 +568,13 @@
                     turnoverColorClass = token.turnoverRate > 30 ? 'text-pink-400' : token.turnoverRate > 10 ? 'text-blue-300' : 'text-gray-400';
                 }
 
-                row.innerHTML += `<td class="px-6 py-4 whitespace-nowrap text-sm text-right ${turnoverColorClass} font-mono">${turnoverText}</td>`;
+                row.innerHTML += `<td class="px-4 py-4 ${financeDataClass} ${turnoverColorClass}">${turnoverText}</td>`;
                 
+                // 10. 板块 (行业/赛道) - **根据用户要求，文字颜色和大小统一**
+                // 颜色统一为 text-gray-300，大小统一为 text-sm
+                const sectorColor = token.sector === 'N/A' ? 'text-gray-500' : 'text-gray-300';
+                row.innerHTML += `<td class="px-4 py-4 whitespace-nowrap text-sm ${sectorColor} hidden md:table-cell">${token.sector}</td>`;
+
                 tbody.appendChild(row);
             });
         }
@@ -399,8 +584,8 @@
          */
         async function fetchDataAndRender() {
              const tbody = document.getElementById('token-list-body');
-             // 7 是现在的列数
-             const colspan = 7;
+             // 10 是现在的列数
+             const colspan = 10;
              // 立即显示加载状态
              tbody.innerHTML = `<tr><td colspan="${colspan}" class="p-8 text-center text-gray-500">正在从 CoinGecko 和 Binance API 获取最新数据...</td></tr>`;
 
@@ -410,8 +595,9 @@
                 sortData(currentSort.column); 
                 console.log("数据刷新成功！");
             } catch (error) {
-                // 如果是 API 频率限制或其他错误，显示错误信息
-                tbody.innerHTML = `<tr><td colspan="${colspan}" class="p-8 text-center text-red-400">数据加载失败。请稍后再试或检查浏览器控制台了解详情。</td></tr>`;
+                // 改进错误处理：向用户展示更清晰的错误信息
+                const errorMessage = `数据加载失败。请检查控制台了解 API 详情。错误信息：${error.message || '未知网络错误'}`;
+                tbody.innerHTML = `<tr><td colspan="${colspan}" class="p-8 text-center text-red-400">${errorMessage}</td></tr>`;
                 console.error("加载数据时发生致命错误:", error);
             }
         }
