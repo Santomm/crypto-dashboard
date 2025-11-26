@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>加密货币代币列表 - 混合数据源</title>
-    <!-- 引入 Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* 引入 Inter 字体以获得现代感 */
@@ -32,20 +31,16 @@
 </head>
 <body class="p-4 sm:p-8">
 
-    <!-- 1. 限制最大宽度并居中，确保在大屏幕上不会过度拉伸 -->
     <div class="max-w-screen-2xl mx-auto">
         <header class="mb-8 p-4 bg-[#161b22] rounded-xl shadow-lg">
             <h1 class="text-3xl sm:text-4xl font-extrabold text-blue-400 mb-2">代币市场数据增强列表</h1>
             <p class="text-gray-400 text-sm sm:text-base">列表已过滤至 **Binance USDT 市场** 的代币。价格/跌幅比：Binance API & CoinGecko ATH | 其他数据：Binance/CoinGecko 混合源 (前 1000 代币已实现 4 小时自动刷新)</p>
         </header>
 
-        <!-- 调整: sm:justify-end 将表单元素推到右侧, 搜索框不再 flex-grow -->
         <div class="flex flex-col sm:flex-row gap-4 mb-6 sm:justify-end">
-            <!-- 搜索框: 移除 flex-grow, 添加 sm:w-80 限制宽度 -->
             <input type="text" id="search-input" placeholder="搜索代币名称或符号..."
                    class="p-3 rounded-xl bg-gray-700 text-white border border-gray-600 focus:ring-blue-500 focus:border-blue-500 transition duration-150 sm:w-80">
             
-            <!-- 筛选/排序按钮组（占位，可扩展） -->
             <div class="flex gap-3">
                 <button class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition duration-150" onclick="fetchDataAndRender()">
                     <svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11.412 8.59l.617-.618m-.617.618a8.002 8.002 0 01-14.735 0M9 14l-2 2 2 2"></path></svg>
@@ -54,53 +49,32 @@
             </div>
         </div>
 
-        <!-- 代币列表表格容器 -->
-        <!-- overflow-x-auto 仍然保留，以保证在移动端小屏时至少能滚动 -->
         <div class="bg-[#161b22] rounded-xl overflow-x-auto shadow-xl">
             <table class="min-w-full divide-y divide-gray-700">
                 <thead class="bg-gray-800 sticky top-0">
                     <tr>
-                        <!-- 1. 排名 (已是 text-left) -->
                         <th class="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('rank')">#</th>
-                        <!-- 2. 名称 (已是 text-left) -->
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('name')">名称</th>
-                        <!-- 3. 价格 (Binance) - 从 text-right 修改为 text-left -->
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('priceUSD')">价格 (USD)</th>
-                        <!-- 4. 历史最高价 (ATH) - 从 text-right 修改为 text-left -->
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden sm:table-cell" onclick="sortData('ath')">历史最高价 (ATH)</th>
-                        <!-- 5. 跌幅比 (ATH) - 从 text-right 修改为 text-left -->
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden sm:table-cell" onclick="sortData('dropFromAthPercent')">跌幅比 (ATH)</th>
-                        <!-- 6. 24H 交易量 (Binance USDT) - 从 text-right 修改为 text-left -->
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden sm:table-cell" onclick="sortData('volume24hUSD')">24H 交易量</th>
-                        <!-- 7. 24小时涨跌幅 - 从 text-right 修改为 text-left -->
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden sm:table-cell" onclick="sortData('priceChangePercent24h')">24小时涨跌幅</th>
-                        <!-- 8. 流通市值 - 从 text-right 修改为 text-left -->
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('circulatingMarketCapUSD')">流通市值</th>
-                        <!-- 9. 换手率 (24H) - 从 text-right 修改为 text-left -->
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer" onclick="sortData('turnoverRate')">换手率 (24H)</th>
-                        <!-- 10. 板块 (行业/赛道) - (已是 text-left) -->
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hidden md:table-cell" onclick="sortData('sector')">板块 (赛道)</th>
                     </tr>
                 </thead>
                 <tbody id="token-list-body" class="divide-y divide-gray-700">
-                    <!-- 数据将通过 JavaScript 填充 -->
                     <tr><td colspan="10" class="p-8 text-center text-gray-500">正在加载数据...</td></tr>
                 </tbody>
             </table>
         </div>
         
-        <!-- 新增：分页控制容器 - 居中且紧凑 -->
-        <!-- 容器内增加了 gap-2 来匹配图片样式 -->
         <div id="pagination-controls" class="flex justify-center items-center gap-2 mt-6 p-4 bg-[#161b22] rounded-xl">
-            <!-- 分页按钮将通过 JavaScript 渲染 -->
-        </div>
-        <!-- 结束：分页控制容器 -->
-
-        <!-- FOOTER: 统一为 text-xs 和 text-gray-500 (#6B7280) -->
+            </div>
         <footer class="mt-8 text-center p-4">
-            <!-- 统一使用 text-xs 和 text-gray-500 -->
             <p class="text-xs text-gray-500">价格/24H交易量源自 Binance API；**跌幅比 (ATH)** 由 Binance 价格和 CoinGecko 历史最高价计算得出 (**稳定币已排除**)。流通市值 = CoinGecko流通供应量 * Binance价格；换手率（稳定币除外）基于 Binance 交易量和计算市值；24H涨跌幅源自 CoinGecko API。</p>
-            <!-- 统一使用 text-xs 和 text-gray-500 -->
             <p class="text-xs text-gray-500 mt-2">**板块 (赛道) 数据特别说明：** 此字段使用我们手动维护的、参考 **RootData** 赛道分类标准整理的 **预设映射表** (SECTOR_MAP) 进行展示。由于浏览器安全策略（CORS）限制以及外部平台官方 API Key 的要求，我们无法在前端直接获取实时标签数据。</p>
         </footer>
     </div>
@@ -361,18 +335,32 @@
                  throw new Error("未能从 CoinGecko 获取任何数据，请检查 API 状态和网络连接。");
             }
 
-            // 关键过滤：只保留在 Binance USDT 市场中有价格的代币
-            const filteredCoinGeckoData = rawCoinGeckoData.filter(token => 
+            // 关键过滤 1: 只保留在 Binance USDT 市场中有价格的代币
+            let filteredCoinGeckoData = rawCoinGeckoData.filter(token => 
                 binancePriceMap.has(token.symbol.toUpperCase())
             );
             
+            // 关键过滤 2: 排除名称中带有 "Bridged", "Binance-Peg", 和 "Wrapped" 的代币 (用户新增需求)
+            const initialFilteredCount = filteredCoinGeckoData.length; 
+
+            // 检查代币名称是否包含任何排除关键词
+            filteredCoinGeckoData = filteredCoinGeckoData.filter(token => {
+                const tokenNameLower = token.name.toLowerCase();
+                return !(
+                    tokenNameLower.includes('bridged') ||
+                    tokenNameLower.includes('binance-peg') ||
+                    tokenNameLower.includes('wrapped') // **新增：剔除名称中带有Wrapped的代币**
+                );
+            });
+            
             // === 增加清晰度日志：过滤后数据量 ===
-            console.log(`[过滤结果] 经过 Binance USDT 交易对过滤后，剩余可显示代币: ${filteredCoinGeckoData.length} 个。`);
+            console.log(`[过滤结果] 经过 Binance USDT 交易对过滤后，剩余代币: ${initialFilteredCount} 个。`);
+            console.log(`[过滤结果] 经过 'Bridged', 'Binance-Peg', 和 'Wrapped' 名称排除后，剩余可显示代币: ${filteredCoinGeckoData.length} 个。`);
             // ======================================
 
             // 【优化】更清晰的控制台警告
             if (filteredCoinGeckoData.length === 0 && binancePriceMap.size > 0) {
-                console.warn("CoinGecko数据已获取，但未发现任何与Binance USDT市场匹配的代币。请检查CoinGecko API返回的符号是否正确。");
+                console.warn("CoinGecko数据已获取，但未发现任何与Binance USDT市场匹配的代币或所有代币均被过滤。");
             }
             if (binancePriceMap.size === 0) {
                 console.error("未能从Binance获取任何价格数据。无法计算流通市值和换手率。请检查API连接。");
@@ -667,7 +655,6 @@
                 row.innerHTML += `
                     <td class="px-4 py-4">
                         <div class="flex items-center">
-                            <!-- 实际图标 -->
                             <img src="${token.image}" alt="${token.symbol} logo" class="w-8 h-8 rounded-full mr-3" onerror="this.onerror=null;this.src='https://placehold.co/32x32/1e40af/ffffff?text=${token.symbol.substring(0, 1)}'">
                             <div class="truncate">
                                 <div class="text-sm font-semibold text-white">${token.name}</div>
